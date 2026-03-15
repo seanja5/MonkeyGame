@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>MonkeyGame 🍌</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { overflow: hidden; background: #1a0a00; font-family: 'Arial Black', 'Arial Bold', Arial, sans-serif; }
+    canvas { display: block; position: absolute; top: 0; left: 0; z-index: 0; }
+
+    /* ── LOADING SCREEN ── */
+    #screen-loading {
+      position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+      background: radial-gradient(ellipse at center, #1a4a0a 0%, #0a1a00 100%);
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      z-index: 50;
+    }
+    #screen-loading.hidden { display: none; }
+    .loading-title {
+      font-size: 72px; color: #FFD700; text-shadow: 3px 3px 0 #8b4513;
+      margin-bottom: 24px; letter-spacing: 3px;
+    }
+    .loading-bar-bg {
+      width: 320px; height: 18px; background: #0a1a00;
+      border: 3px solid #FFD700; border-radius: 9px; overflow: hidden;
+    }
+    .loading-bar-fill {
+      height: 100%; width: 0%; background: linear-gradient(90deg, #FFD700, #ff8c00);
+      border-radius: 6px; transition: width 0.15s ease;
+    }
+    .loading-text {
+      margin-top: 14px; font-size: 16px; color: #a8ff78; letter-spacing: 1px;
+    }
+
+    #ui-layer {
+      position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+      pointer-events: none; z-index: 10;
+    }
+    .screen {
+      display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+      pointer-events: all; flex-direction: column; align-items: center; justify-content: center;
+    }
+    .screen.active { display: flex; }
+
+    /* ── MAIN MENU ── */
+    #screen-menu {
+      background: radial-gradient(ellipse at center, #1a4a0a 0%, #0a1a00 100%);
+    }
+    .menu-title {
+      font-size: 96px; color: #FFD700; text-shadow: 4px 4px 0 #8b4513, 8px 8px 0 #3d1f00;
+      letter-spacing: 4px; margin-bottom: 16px; animation: titleBob 2s ease-in-out infinite;
+    }
+    .menu-subtitle {
+      font-size: 24px; color: #a8ff78; margin-bottom: 60px;
+      text-shadow: 2px 2px 0 #2d5a00;
+    }
+    @keyframes titleBob {
+      0%,100% { transform: translateY(0); }
+      50% { transform: translateY(-10px); }
+    }
+    .btn {
+      background: linear-gradient(180deg, #FFD700 0%, #ff8c00 100%);
+      color: #3d1f00; border: 4px solid #3d1f00; border-radius: 16px;
+      font-size: 28px; font-weight: 900; padding: 16px 48px; cursor: pointer;
+      text-shadow: none; transition: transform 0.1s, box-shadow 0.1s;
+      box-shadow: 4px 4px 0 #3d1f00; pointer-events: all;
+      font-family: 'Arial Black', Arial, sans-serif;
+    }
+    .btn:hover { transform: translateY(-3px); box-shadow: 4px 7px 0 #3d1f00; }
+    .btn:active { transform: translateY(2px); box-shadow: 2px 2px 0 #3d1f00; }
+    .btn-secondary {
+      background: linear-gradient(180deg, #4a9a3a 0%, #2d6a1a 100%);
+      color: #fff; border-color: #1a3d0a; box-shadow: 4px 4px 0 #1a3d0a;
+      margin-top: 16px; font-size: 20px; padding: 12px 36px;
+    }
+    .btn-secondary:hover { box-shadow: 4px 7px 0 #1a3d0a; }
+
+    /* ── CHARACTER SELECT ── */
+    #screen-charselect {
+      background: radial-gradient(ellipse at center, #2a5a1a 0%, #0a1a00 100%);
+      padding: 20px;
+    }
+    .charselect-title {
+      font-size: 48px; color: #FFD700; text-shadow: 3px 3px 0 #8b4513;
+      margin-bottom: 8px;
+    }
+    .charselect-subtitle {
+      font-size: 18px; color: #a8ff78; margin-bottom: 24px;
+    }
+    .class-cards {
+      display: flex; gap: 16px; justify-content: center; align-items: flex-start;
+      flex-wrap: wrap; max-width: 1200px;
+    }
+    .class-card {
+      background: linear-gradient(180deg, #3d2200 0%, #1a0a00 100%);
+      border: 4px solid #8b4513; border-radius: 16px; padding: 20px 16px;
+      width: 200px; cursor: pointer; transition: transform 0.15s, border-color 0.15s;
+      text-align: center; pointer-events: all;
+    }
+    .class-card:hover { transform: translateY(-6px); border-color: #FFD700; }
+    .class-card.selected { border-color: #FFD700; background: linear-gradient(180deg, #5a3200 0%, #2a1400 100%); }
+    .class-avatar {
+      width: 80px; height: 80px; border-radius: 50%; margin: 0 auto 12px;
+      border: 4px solid #FFD700; display: flex; align-items: center; justify-content: center;
+      font-size: 36px;
+    }
+    .class-name { font-size: 22px; color: #FFD700; font-weight: 900; margin-bottom: 4px; }
+    .class-tagline { font-size: 11px; color: #a8ff78; margin-bottom: 12px; font-style: italic; font-weight: normal; }
+    .class-stats { text-align: left; font-size: 12px; color: #ccc; line-height: 1.7; }
+    .class-stats span { color: #FFD700; }
+    .class-ability { margin-top: 10px; font-size: 11px; color: #ff8c00; border-top: 1px solid #5a3200; padding-top: 8px; }
+    .charselect-actions { margin-top: 24px; display: flex; gap: 16px; }
+
+    /* ── HUD ── */
+    #hud { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
+    #hud-topleft {
+      position: absolute; top: 16px; left: 16px;
+      background: rgba(0,0,0,0.6); border: 3px solid #FFD700; border-radius: 12px;
+      padding: 10px 16px; color: #FFD700;
+    }
+    #wave-display { font-size: 28px; font-weight: 900; }
+    #enemies-remaining { font-size: 14px; color: #a8ff78; }
+    #hud-topright {
+      position: absolute; top: 16px; right: 16px;
+      background: rgba(0,0,0,0.6); border: 3px solid #FFD700; border-radius: 12px;
+      padding: 10px 20px;
+      font-size: 32px; color: #FFD700; font-weight: 900;
+    }
+    #hud-bottom {
+      position: absolute; bottom: 16px; left: 16px; right: 16px;
+      display: flex; justify-content: space-between; align-items: flex-end;
+    }
+    #hud-bottomleft {
+      background: rgba(0,0,0,0.6); border: 3px solid #FFD700; border-radius: 12px;
+      padding: 10px 16px; min-width: 220px;
+    }
+    #class-display { font-size: 14px; color: #a8ff78; margin-bottom: 4px; }
+    #hp-bar-wrap {
+      background: #3d0000; border: 2px solid #ff4444; border-radius: 8px;
+      height: 20px; overflow: hidden; margin-bottom: 6px;
+    }
+    #hp-bar {
+      height: 100%; background: linear-gradient(90deg, #ff4444, #ff0000);
+      transition: width 0.2s; border-radius: 6px;
+    }
+    #hp-text { font-size: 12px; color: #ff8888; margin-bottom: 6px; }
+    #ability-display { font-size: 12px; color: #ff8c00; }
+    #ability-display.ready { color: #00ff88; }
+    #hud-bottomright {
+      background: rgba(0,0,0,0.6); border: 3px solid #8b4513; border-radius: 12px;
+      padding: 10px 16px; text-align: right;
+    }
+    #weapon-display { font-size: 18px; color: #FFD700; font-weight: 900; }
+    #weapon-ammo { font-size: 12px; color: #ccc; }
+
+    #countdown-overlay {
+      position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+      font-size: 120px; color: #FFD700; font-weight: 900;
+      text-shadow: 4px 4px 0 #3d1f00; pointer-events: none; display: none;
+      animation: countdownPop 0.6s ease-out forwards;
+    }
+    @keyframes countdownPop {
+      0% { transform: translate(-50%,-50%) scale(0.5); opacity: 1; }
+      70% { transform: translate(-50%,-50%) scale(1.2); opacity: 1; }
+      100% { transform: translate(-50%,-50%) scale(1); opacity: 0; }
+    }
+
+    #wave-banner {
+      position: absolute; top: 30%; left: 50%; transform: translateX(-50%);
+      text-align: center; pointer-events: none; display: none;
+    }
+    #wave-banner-text {
+      font-size: 72px; color: #FFD700; font-weight: 900;
+      text-shadow: 4px 4px 0 #3d1f00;
+    }
+    #wave-banner-sub { font-size: 24px; color: #ff8c00; }
+
+    /* ── SHOP ── */
+    #screen-shop {
+      background: rgba(0,0,0,0.85);
+      flex-direction: column; padding: 20px; overflow-y: auto;
+    }
+    .shop-header {
+      font-size: 48px; color: #FFD700; text-shadow: 3px 3px 0 #8b4513;
+      margin-bottom: 4px; text-align: center;
+    }
+    .shop-balance {
+      font-size: 24px; color: #FFD700; text-align: center; margin-bottom: 20px;
+    }
+    .shop-timer {
+      font-size: 18px; color: #ff8c00; text-align: center; margin-bottom: 16px;
+    }
+    .shop-sections { display: flex; gap: 24px; flex-wrap: wrap; justify-content: center; }
+    .shop-section { flex: 1; min-width: 280px; max-width: 440px; }
+    .shop-section-title {
+      font-size: 22px; color: #a8ff78; border-bottom: 2px solid #3d5a00;
+      padding-bottom: 8px; margin-bottom: 12px;
+    }
+    .shop-items { display: flex; flex-direction: column; gap: 8px; }
+    .shop-item {
+      background: linear-gradient(180deg, #2a1400 0%, #1a0a00 100%);
+      border: 3px solid #8b4513; border-radius: 12px; padding: 12px 16px;
+      display: flex; align-items: center; gap: 12px; cursor: pointer;
+      transition: border-color 0.15s; pointer-events: all;
+    }
+    .shop-item:hover:not(.owned):not(.cant-afford) { border-color: #FFD700; }
+    .shop-item.owned { border-color: #4a9a3a; opacity: 0.7; cursor: default; }
+    .shop-item.cant-afford { opacity: 0.5; cursor: not-allowed; }
+    .shop-item.equipped { border-color: #00ff88; }
+    .item-icon { font-size: 32px; min-width: 40px; text-align: center; }
+    .item-info { flex: 1; }
+    .item-name { font-size: 16px; color: #FFD700; font-weight: 900; }
+    .item-desc { font-size: 12px; color: #aaa; margin-top: 2px; }
+    .item-cost { font-size: 18px; color: #FFD700; font-weight: 900; white-space: nowrap; }
+    .item-owned-badge {
+      font-size: 12px; color: #4a9a3a; font-weight: 900; white-space: nowrap;
+    }
+    .shop-actions { margin-top: 24px; display: flex; gap: 16px; justify-content: center; }
+
+    /* ── GAME OVER ── */
+    #screen-gameover {
+      background: rgba(0,0,0,0.9);
+    }
+    .gameover-title {
+      font-size: 96px; color: #ff4444; text-shadow: 4px 4px 0 #8b0000;
+      margin-bottom: 16px;
+    }
+    .gameover-stats { color: #FFD700; font-size: 24px; text-align: center; line-height: 2; margin-bottom: 40px; }
+    .gameover-stats div { font-size: 18px; color: #ccc; }
+
+    /* ── DAMAGE NUMBERS ── */
+    .damage-number {
+      position: absolute; pointer-events: none;
+      font-size: 24px; font-weight: 900; color: #ff4444;
+      text-shadow: 2px 2px 0 #3d0000;
+      animation: dmgFloat 1s ease-out forwards;
+      z-index: 100;
+    }
+    .damage-number.banana-pickup {
+      color: #FFD700; font-size: 20px;
+    }
+    @keyframes dmgFloat {
+      0% { transform: translateY(0); opacity: 1; }
+      100% { transform: translateY(-60px); opacity: 0; }
+    }
+
+    /* ── COUNTDOWN TIMER (shop) ── */
+    .shop-timer-bar-wrap {
+      height: 8px; background: #333; border-radius: 4px; margin-bottom: 16px;
+    }
+    .shop-timer-bar { height: 100%; background: #ff8c00; border-radius: 4px; transition: width 0.2s; }
+  </style>
+</head>
+<body>
+  <canvas id="gameCanvas"></canvas>
+
+  <!-- Loading screen (shown until all models are preloaded) -->
+  <div id="screen-loading">
+    <div class="loading-title">🍌 MONKEY GAME</div>
+    <div class="loading-bar-bg"><div class="loading-bar-fill" id="loading-bar"></div></div>
+    <div class="loading-text" id="loading-text">Loading assets…</div>
+  </div>
+
+  <div id="ui-layer">
+    <div id="screen-menu" class="screen">
+      <div class="menu-title">🍌 MONKEY GAME</div>
+      <div class="menu-subtitle">Defend the Jungle. Collect Bananas. Obliterate the Capture Force.</div>
+      <button class="btn" id="btn-start">PLAY</button>
+      <button class="btn btn-secondary" id="btn-howtoplay">HOW TO PLAY</button>
+    </div>
+
+    <div id="screen-charselect" class="screen">
+      <div class="charselect-title">🐒 CHOOSE YOUR FIGHTER</div>
+      <div class="charselect-subtitle">Pick a class. The jungle is counting on you.</div>
+      <div class="class-cards" id="class-cards"></div>
+      <div class="charselect-actions">
+        <button class="btn btn-secondary" id="btn-back-to-menu">← BACK</button>
+        <button class="btn" id="btn-confirm-class">INTO THE JUNGLE →</button>
+      </div>
+    </div>
+
+    <div id="hud" style="display:none;">
+      <div id="hud-topleft">
+        <div id="wave-display">WAVE 1</div>
+        <div id="enemies-remaining">Loading...</div>
+      </div>
+      <div id="hud-topright">🍌 <span id="banana-count">0</span></div>
+      <div id="hud-bottom">
+        <div id="hud-bottomleft">
+          <div id="class-display">CHIMP</div>
+          <div id="hp-text">100 / 100</div>
+          <div id="hp-bar-wrap"><div id="hp-bar" style="width:100%"></div></div>
+          <div id="ability-display" class="ready">ABILITY [Q] READY</div>
+        </div>
+        <div id="hud-bottomright">
+          <div id="weapon-display">Banana Blaster</div>
+          <div id="weapon-ammo">Click to shoot • 1-5 switch</div>
+        </div>
+      </div>
+      <div id="countdown-overlay"></div>
+      <div id="wave-banner">
+        <div id="wave-banner-text"></div>
+        <div id="wave-banner-sub"></div>
+      </div>
+    </div>
+
+    <div id="screen-shop" class="screen">
+      <div class="shop-header">🌴 TREEHOUSE SHOP</div>
+      <div class="shop-balance">🍌 <span id="shop-balance">0</span> bananas</div>
+      <div class="shop-timer">Next wave in: <span id="shop-countdown">30</span>s
+        <div class="shop-timer-bar-wrap"><div class="shop-timer-bar" id="shop-timer-bar"></div></div>
+      </div>
+      <div class="shop-sections">
+        <div class="shop-section">
+          <div class="shop-section-title">🔫 WEAPONS</div>
+          <div class="shop-items" id="shop-weapons"></div>
+        </div>
+        <div class="shop-section">
+          <div class="shop-section-title">⬆️ UPGRADES</div>
+          <div class="shop-items" id="shop-upgrades"></div>
+        </div>
+        <div class="shop-section">
+          <div class="shop-section-title">🩹 CONSUMABLES</div>
+          <div class="shop-items" id="shop-consumables"></div>
+        </div>
+      </div>
+      <div class="shop-actions">
+        <button class="btn" id="btn-continue-wave">READY → NEXT WAVE</button>
+      </div>
+    </div>
+
+    <div id="screen-gameover" class="screen">
+      <div class="gameover-title">💀 CAPTURED!</div>
+      <div class="gameover-stats">
+        <div>Waves Survived: <span id="go-waves">0</span></div>
+        <div>Enemies Defeated: <span id="go-kills">0</span></div>
+        <div>Bananas Collected: <span id="go-bananas">0</span></div>
+      </div>
+      <button class="btn" id="btn-restart">TRY AGAIN</button>
+    </div>
+  </div>
+
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>
